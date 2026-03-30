@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Harmonic Orchestra v64</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --bg: #08090a; --strip: #121417; --border: #262a2e; 
+            --text: #eeeeee; --label: #6b7280; --accent: #ffffff;
+            --radius: 6px; --glow: 0 0 12px rgba(255, 255, 255, 0.45);
+        }
+        body { 
+            background: var(--bg); color: var(--text); font-family: "Inter", sans-serif;
+            font-weight: 300; -webkit-font-smoothing: antialiased; overflow: hidden;
+        }
+        
+        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; transition: background 0.1s, color 0.1s; }
+
+        input[type=number], select { 
+            background: #000; border: 1px solid var(--border); color: #fff; 
+            padding: 1px 2px; font-size: 10px; outline: none; border-radius: 3px; text-align: center;
+        }
+
+        .committing { background: var(--accent) !important; color: #000 !important; }
+
+        .brand-header {
+            height: 45px; background: #000; border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between; padding: 0 12px;
+        }
+        
+        .global-panel { 
+            background: #0b0c0e; border-bottom: 1px solid var(--border); 
+            height: 110px; display: flex; align-items: center; overflow-x: auto; white-space: nowrap;
+        }
+
+        .master-segment { 
+            padding: 0 14px; border-right: 1px solid rgba(255,255,255,0.05); 
+            display: flex; gap: 14px; align-items: flex-start; height: 80%; padding-top: 10px;
+        }
+
+        .target-box, .param-iso-chk { 
+            appearance: none; width: 11px; height: 11px; border: 1px solid #444; 
+            background: transparent; cursor: pointer; border-radius: 50%; transition: all 0.2s; 
+        }
+        .target-box:checked, .param-iso-chk:checked { 
+            background: var(--accent); border-color: var(--accent); 
+            box-shadow: 0 0 10px rgba(255,255,255,0.6); 
+        }
+
+        .row-toggle { 
+            font-size: 9px; width: 12px; height: 11px;
+            cursor: pointer; font-weight: 900; color: rgba(255,255,255,0.2);
+            display: flex; align-items: center; justify-content: center;
+            margin-right: 4px; transition: color 0.2s;
+            transform: translateY(-5px); 
+        }
+        .row-toggle:hover { color: #fff; }
+
+        .orchestra-container { display: flex; gap: 6px; padding: 10px; align-items: flex-start; overflow-x: auto; height: calc(100vh - 155px); }
+        .voice-column { display: column; flex-direction: column; gap: 6px; min-width: 155px; }
+
+        .voice-strip { background: var(--strip); border: 1px solid var(--border); padding: 8px; border-radius: var(--radius); }
+        .voice-strip.collapsed .full-ui { display: none; }
+        .voice-strip.collapsed .collapsed-ui { display: flex; }
+
+        .meter-container { width: 3px; height: 11px; background: #000; border-radius: 1px; overflow: hidden; position: relative; }
+        .meter-bar { width: 100%; position: absolute; bottom: 0; background: #4ade80; }
+
+        .toggle-switch { width: 16px; height: 8px; border: 1px solid #444; position: relative; border-radius: 4px; cursor: pointer; }
+        .toggle-knob { width: 4px; height: 4px; background: #555; position: absolute; top: 1px; left: 2px; transition: 0.2s; border-radius: 50%; }
+        .toggle-active { border-color: var(--accent); box-shadow: var(--glow); }
+        .toggle-active .toggle-knob { left: 8px; background: var(--accent); }
+
+        .btn { border: 1px solid var(--border); padding: 2px; text-transform: uppercase; font-size: 7px; cursor: pointer; background: transparent; color: var(--text); border-radius: 4px; }
+        .btn-active { background: var(--accent) !important; color: #000 !important; font-weight: 700; box-shadow: var(--glow); }
+        
+        label { font-size: 7px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--label); text-align: center; display: block; }
+        
+        .rnd-toggle, .inc-toggle, .link-toggle { font-size: 7px; color: var(--label); cursor: pointer; border: 1px solid var(--border); padding: 0 3px; border-radius: 3px; line-height: 1.4; transition: 0.2s; }
+        .active { background: var(--accent) !important; color: #000 !important; border-color: var(--accent); font-weight: 900; box-shadow: var(--glow); }
+        
+        .batch-unit { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+        .knob-stack { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+        .knob-surround { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #222; background: #111; position: relative; display: flex; align-items: center; justify-content: center; }
+        .knob-pointer { width: 2px; height: 7px; background: var(--text); position: absolute; top: 3px; left: calc(50% - 1px); transform-origin: 50% 7px; transition: transform 0.1s; }
+        .knob-input { position: absolute; width: 100%; height: 100%; opacity: 0; cursor: ns-resize; }
+    </style>
+</head>
+<body>
+
+    <div class="brand-header">
+        <div class="flex flex-col">
+            <div class="text-[10px] tracking-[0.3em] font-bold text-white/90">HARMONIC ORCHESTRA</div>
+            <div class="text-[7px] tracking-[0.1em] uppercase opacity-40">© Alexander Garsden 2026</div>
+        </div>
+
+        <div class="flex items-center gap-2 bg-[#111] border border-white/5 p-1 rounded-md">
+            <label class="!text-[6px] opacity-30 px-1">Memory</label>
+            <select id="memory-slot" class="w-18 h-6 text-[9px] bg-black border-white/20"></select>
+            <button onclick="saveMemory()" class="btn px-2 h-6 hover:bg-white/10">SAVE</button>
+            <button onclick="loadMemory()" class="btn px-2 h-6 hover:bg-white/10">LOAD</button>
+            <div class="w-[1px] h-4 bg-white/10 mx-1"></div>
+            <button onclick="exportMemory()" class="btn px-2 h-6 hover:bg-white/10 border-blue-900/30">EXP</button>
+            <button onclick="document.getElementById('import-input').click()" class="btn px-2 h-6 hover:bg-white/10 border-blue-900/30">IMP</button>
+            <input type="file" id="import-input" class="hidden" accept=".json" onchange="importMemory(this)">
+        </div>
+        
+        <div class="flex items-center gap-4 h-full">
+            <button onclick="killAll()" class="btn px-3 h-7 border-red-900/40 text-red-500 font-bold hover:bg-red-900/10">All Off</button>
+            <div class="knob-stack !flex-row !gap-2">
+                <label class="mt-1">Master</label>
+                <div class="knob-surround">
+                    <div id="master-vol-pointer" class="knob-pointer"></div>
+                    <input type="range" id="master-vol-sl" min="0" max="1.5" step="0.01" value="0.8" class="knob-input">
+                </div>
+                <input type="number" id="master-vol-num" value="0.8" step="0.01" class="w-8 h-5 mt-0.5 commit-field">
+            </div>
+        </div>
+    </div>
+
+    <div class="global-panel px-3">
+        <div class="flex flex-col items-center justify-center border-right border-white/10 pr-4 mr-1 h-full min-w-[100px]">
+            <div class="text-[9px] text-white/50 tracking-[0.3em] font-bold uppercase mb-1">Batch Send</div>
+            <div class="flex gap-3">
+                <button onclick="bulkParamSelect(true)" class="text-[7px] opacity-40 hover:opacity-100 uppercase tracking-tighter">all</button>
+                <button onclick="bulkParamSelect(false)" class="text-[7px] opacity-40 hover:opacity-100 uppercase tracking-tighter">clear</button>
+            </div>
+        </div>
+
+        <div class="master-segment">
+            <div class="batch-unit">
+                <input type="checkbox" id="g-chk-wave" class="param-iso-chk" checked>
+                <label>Wave</label>
+                <select id="g-wave" class="w-12 h-5 !text-[8px]"><option value="sine">SIN</option><option value="square">SQR</option><option value="triangle">TRI</option><option value="sawtooth">SAW</option></select>
+            </div>
+        </div>
+
+        <div class="master-segment">
+            <div class="batch-unit">
+                <input type="checkbox" id="g-chk-fund" class="param-iso-chk" checked>
+                <label>Fund</label>
+                <div class="flex gap-1">
+                    <input type="number" id="g-fund-a" value="110" class="w-8 h-5 commit-field">
+                    <input type="number" id="g-fund-b" value="110" class="w-8 h-5 hidden commit-field">
+                    <div id="rnd-g-fund" onclick="toggleRnd(this, 'g-fund-b')" class="rnd-toggle" data-key="g-fund">R</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="master-segment">
+            <div class="batch-unit">
+                <input type="checkbox" id="g-chk-harm" class="param-iso-chk" checked>
+                <label>Harm</label>
+                <div class="flex gap-1">
+                    <input type="number" id="g-harm-val" value="1" class="w-7 h-5 commit-field">
+                    <div onclick="this.classList.toggle('active')" id="g-harm-inc" class="inc-toggle active">INC</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center h-full" id="batch-params-container"></div>
+
+        <div class="master-segment">
+            <div class="batch-unit">
+                <input type="checkbox" id="g-chk-pulse" class="param-iso-chk" checked>
+                <label>Pulse</label>
+                <div class="flex items-center gap-2">
+                   <div id="g-pls-sw" class="toggle-switch" onclick="this.classList.toggle('toggle-active')"><div class="toggle-knob"></div></div>
+                   <div id="g-pls-link" class="link-toggle" onclick="this.classList.toggle('active')">🔗</div>
+                </div>
+            </div>
+            <div class="flex flex-col gap-1 justify-center pt-4">
+                <div class="flex items-center gap-1"><label class="w-3">On</label><input type="number" id="g-p-on-a" value="1.0" class="w-8 h-4 commit-field"><input type="number" id="g-p-on-b" value="1.0" class="w-8 h-4 hidden commit-field"><div id="rnd-g-p-on" onclick="toggleRnd(this, 'g-p-on-b')" class="rnd-toggle" data-key="g-p-on">R</div></div>
+                <div class="flex items-center gap-1"><label class="w-3">Off</label><input type="number" id="g-p-off-a" value="1.0" class="w-8 h-4 commit-field"><input type="number" id="g-p-off-b" value="1.0" class="w-8 h-4 hidden commit-field"><div id="rnd-g-p-off" onclick="toggleRnd(this, 'g-p-off-b')" class="rnd-toggle" data-key="g-p-off">R</div></div>
+            </div>
+        </div>
+
+        <div class="master-segment">
+            <div class="batch-unit">
+                <input type="checkbox" id="g-chk-trem" class="param-iso-chk" checked>
+                <label>Trem</label>
+                <div id="g-trem-sw" class="toggle-switch" onclick="this.classList.toggle('toggle-active')"><div class="toggle-knob"></div></div>
+            </div>
+            <div class="flex flex-col gap-1 justify-center pt-4">
+                <div class="flex items-center gap-1"><label class="w-3">R</label><input type="number" id="g-tr-rate-a" value="2.0" class="w-8 h-4 commit-field"><input type="number" id="g-tr-rate-b" value="2.0" class="w-8 h-4 hidden commit-field"><div id="rnd-g-tr-rate" onclick="toggleRnd(this, 'g-tr-rate-b')" class="rnd-toggle" data-key="g-tr-rate">R</div></div>
+                <div class="flex items-center gap-1"><label class="w-3">D</label><input type="number" id="g-tr-depth-a" value="0.5" class="w-8 h-4 commit-field"><input type="number" id="g-tr-depth-b" value="0.5" class="w-8 h-4 hidden commit-field"><div id="rnd-g-tr-depth" onclick="toggleRnd(this, 'g-tr-depth-b')" class="rnd-toggle" data-key="g-tr-depth">R</div></div>
+            </div>
+        </div>
+
+        <div class="master-segment">
+            <div class="batch-unit">
+                <input type="checkbox" id="g-chk-porta" class="param-iso-chk" checked>
+                <label>Porta</label>
+                <div id="g-porta-sw" class="toggle-switch" onclick="this.classList.toggle('toggle-active')"><div class="toggle-knob"></div></div>
+            </div>
+            <div class="flex flex-col gap-1 justify-center pt-4">
+                <div class="flex items-center gap-1"><label class="w-4">Time</label><input type="number" id="g-porta-a" value="0.5" class="w-8 h-4 commit-field"><input type="number" id="g-porta-b" value="0.5" class="w-8 h-4 hidden commit-field"><div id="rnd-g-porta" onclick="toggleRnd(this, 'g-porta-b')" class="rnd-toggle" data-key="g-porta">R</div></div>
+            </div>
+        </div>
+
+        <div class="master-segment">
+            <div class="flex flex-col gap-1 justify-center">
+                <div class="flex items-center gap-3 mb-1">
+                    <label class="!text-left">Targets</label>
+                    <div class="flex gap-2"><button onclick="bulkSelect(true)" class="text-[6px] opacity-40 hover:opacity-100 uppercase">[all]</button><button onclick="bulkSelect(false)" class="text-[6px] opacity-40 hover:opacity-100 uppercase">[none]</button></div>
+                </div>
+                <div id="target-selector" class="flex flex-col gap-[6px]">
+                    <div id="target-row-0" class="flex items-center gap-2"></div>
+                    <div id="target-row-1" class="flex items-center gap-2"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="master-segment border-none flex-1 flex justify-end pr-4">
+            <button onclick="globalApply()" class="btn px-6 h-12 border-white/20 hover:bg-white/5 font-bold text-[9px]">Apply</button>
+        </div>
+    </div>
+
+    <div id="orchestra-grid" class="orchestra-container"></div>
+
+    <div id="init-screen" class="fixed inset-0 bg-black flex flex-col items-center justify-center z-[100]">
+        <button onclick="setupAudio()" class="btn px-10 py-5 text-[9px] tracking-[1.2em] border-white/10 hover:border-white">Initialize</button>
+    </div>
+
+<script>
+let ctx, masterLimiter, masterGainNode;
+const voices = [];
+const APP_KEY = "harmonic_orch_v64_presets";
+
+function commitFlash(el) {
+    if(!el) return;
+    el.classList.add('committing');
+    setTimeout(() => el.classList.remove('committing'), 150);
+}
+
+// Global hook to apply "Enter to Commit" to any field
+function applyCommitLogic(el, callback) {
+    if(!el) return;
+    el.addEventListener('keydown', (e) => {
+        if(e.key === 'Enter') {
+            callback(el.value);
+            commitFlash(el);
+            el.blur();
+        }
+    });
+    el.addEventListener('blur', () => {
+        callback(el.value);
+    });
+}
+
+function toggleRnd(btn, secondaryId, forceState) {
+    if(!btn) return;
+    const isRnd = (forceState !== undefined) ? forceState : btn.classList.toggle('active');
+    if(forceState !== undefined) btn.classList.toggle('active', forceState);
+    const target = document.getElementById(secondaryId);
+    if(target) target.classList.toggle('hidden', !isRnd);
+}
+
+function bulkSelect(state) {
+    for(let i=0; i<16; i++) {
+        const cb = document.getElementById(`target-${i}`);
+        if(cb) cb.checked = state;
+    }
+}
+
+function bulkParamSelect(state) {
+    document.querySelectorAll('.param-iso-chk').forEach(chk => chk.checked = state);
+}
+
+function toggleRow(rowIdx) {
+    const start = rowIdx * 8;
+    for(let i=start; i < start + 8; i++) {
+        const cb = document.getElementById(`target-${i}`);
+        if(cb) cb.checked = !cb.checked;
+    }
+}
+
+function updateKnobVisual(id, val) {
+    const sl = document.getElementById(`${id}-sl`), ptr = document.getElementById(`${id}-pointer`);
+    if(ptr && sl) ptr.style.transform = `rotate(${(((val - sl.min)/(sl.max - sl.min))*270)-135}deg)`;
+}
+
+function createBatchControlHTML(id, label, val) {
+    const key = id.replace('g-', '');
+    return `
+        <div class="master-segment">
+            <div class="batch-unit">
+                <input type="checkbox" id="g-chk-${key}" class="param-iso-chk" checked>
+                <label>${label}</label>
+                <div class="flex gap-1">
+                    <input type="number" id="${id}-a" value="${val}" class="w-8 h-5 commit-field">
+                    <input type="number" id="${id}-b" value="${val}" class="w-8 h-5 hidden commit-field">
+                    <div id="rnd-${id}" onclick="toggleRnd(this, '${id}-b')" class="rnd-toggle" data-key="${id}">R</div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+class Voice {
+    constructor(id) {
+        this.id = id; this.isToggled = false; this.portaActive = false; this.tremActive = false; 
+        this.pulseActive = false; this.collapsed = false; this.pulseTimeout = null;
+        this.nodes = {
+            osc: ctx.createOscillator(), filter: ctx.createBiquadFilter(), tremGain: ctx.createGain(),
+            pan: ctx.createStereoPanner(), volGain: ctx.createGain(), envGain: ctx.createGain(),
+            splitter: ctx.createChannelSplitter(2), analyserL: ctx.createAnalyser(), analyserR: ctx.createAnalyser(),
+            lfo: ctx.createOscillator(), lfoDepth: ctx.createGain()
+        };
+        this.nodes.envGain.gain.value = 0;
+        this.nodes.osc.connect(this.nodes.filter).connect(this.nodes.tremGain).connect(this.nodes.pan)
+                  .connect(this.nodes.volGain).connect(this.nodes.envGain).connect(masterLimiter);
+        this.nodes.envGain.connect(this.nodes.splitter);
+        this.nodes.splitter.connect(this.nodes.analyserL, 0); this.nodes.splitter.connect(this.nodes.analyserR, 1);
+        this.nodes.analyserL.fftSize = 64; this.nodes.analyserR.fftSize = 64;
+        this.nodes.lfo.connect(this.nodes.lfoDepth).connect(this.nodes.tremGain.gain);
+        this.nodes.osc.start(); this.nodes.lfo.start();
+        this.render(); 
+        this.attachListeners(); 
+        this.syncParams(true); 
+        this.updateMeter();
+    }
+
+    render() {
+        const colIndex = this.id % 8;
+        let col = document.getElementById(`col-${colIndex}`) || (() => {
+            const c = document.createElement('div'); c.id = `col-${colIndex}`; c.className = "voice-column";
+            document.getElementById('orchestra-grid').appendChild(c); return c;
+        })();
+        const strip = document.createElement('div');
+        strip.id = `strip-${this.id}`; strip.className = "voice-strip";
+        strip.innerHTML = `
+            <div class="flex justify-between items-center border-b border-white/5 pb-1 mb-2">
+                <div class="flex items-center gap-1">
+                    <div class="flex gap-[1px] h-3">
+                        <div class="meter-container"><div id="metL-${this.id}" class="meter-bar"></div></div>
+                        <div class="meter-container"><div id="metR-${this.id}" class="meter-bar"></div></div>
+                    </div>
+                    <span class="text-[7px] font-bold opacity-40 uppercase">VOICE ${this.id + 1}</span>
+                </div>
+                <button onclick="voices[${this.id}].toggleCollapse()" id="collapse-label-${this.id}" class="text-[6px] opacity-20 hover:opacity-100 uppercase">collapse</button>
+            </div>
+            
+            <div class="full-ui space-y-2">
+                <div class="grid grid-cols-3 gap-1">
+                    <div class="flex flex-col items-center justify-center"><label>WAVE</label><select id="wave-${this.id}" class="w-full h-5 text-[8px] mt-1"><option value="sine">SIN</option><option value="square">SQR</option><option value="triangle">TRI</option><option value="sawtooth">SAW</option></select></div>
+                    <div class="flex flex-col items-center justify-center"><label>FUND</label><input type="number" id="freq-${this.id}" value="110" class="w-full h-5 mt-1 commit-field"></div>
+                    <div class="flex flex-col items-center justify-center"><label>HARM</label><input type="number" id="harm-${this.id}" value="${this.id + 1}" class="w-full h-5 mt-1 commit-field"></div>
+                </div>
+                <div class="grid grid-cols-3 gap-1">
+                    ${this.knob(`atk-${this.id}`, 'Atk', 0.01, 10, 0.5)}
+                    ${this.knob(`rel-${this.id}`, 'Rel', 0.01, 10, 1.5)}
+                    ${this.knob(`lpf-${this.id}`, 'LPF', 40, 12000, 8000)}
+                </div>
+                <div class="grid grid-cols-2 gap-1">
+                    ${this.knob(`vol-${this.id}`, 'Vol', 0, 0.4, 0.1)}
+                    ${this.knob(`pan-${this.id}`, 'Pan', -1, 1, 0)}
+                </div>
+                <div class="pt-1 border-t border-white/5 flex flex-col gap-1">
+                    <div class="flex justify-between items-center"><label>Pulse</label><div class="flex gap-2 items-center"><div id="pls-link-${this.id}" class="link-toggle" onclick="this.classList.toggle('active')">🔗</div><div id="pls-sw-${this.id}" class="toggle-switch"><div class="toggle-knob"></div></div></div></div>
+                    <div class="flex items-center justify-between w-full"><label class="w-4">On</label><div class="flex gap-1 flex-1 justify-end"><input type="number" id="p-on-a-${this.id}" value="1.0" class="w-9 h-4 commit-field"><input type="number" id="p-on-b-${this.id}" value="2.0" class="w-9 h-4 hidden commit-field"><div id="rnd-p-on-${this.id}" onclick="toggleRnd(this, 'p-on-b-${this.id}')" class="rnd-toggle" data-key="p-on-${this.id}">R</div></div></div>
+                    <div class="flex items-center justify-between w-full"><label class="w-4">Off</label><div class="flex gap-1 flex-1 justify-end"><input type="number" id="p-off-a-${this.id}" value="1.0" class="w-9 h-4 commit-field"><input type="number" id="p-off-b-${this.id}" value="2.0" class="w-9 h-4 hidden commit-field"><div id="rnd-p-off-${this.id}" onclick="toggleRnd(this, 'p-off-b-${this.id}')" class="rnd-toggle" data-key="p-off-${this.id}">R</div></div></div>
+                </div>
+                <div class="grid grid-cols-2 gap-1">
+                    <div class="knob-stack border border-white/5 p-1 rounded"><label>Trem</label><div id="trem-sw-${this.id}" class="toggle-switch my-1"><div class="toggle-knob"></div></div><div class="flex gap-1">${this.knob(`tr-rate-${this.id}`, 'R', 0.1, 40, 2.0)}${this.knob(`tr-depth-${this.id}`, 'D', 0, 1, 0.5)}</div></div>
+                    <div class="knob-stack border border-white/5 p-1 rounded"><label>Porta</label><div id="porta-sw-${this.id}" class="toggle-switch my-1"><div class="toggle-knob"></div></div>${this.knob(`porta-${this.id}`, 'Time', 0.01, 40, 0.5)}</div>
+                </div>
+                <button id="btn-onoff-${this.id}" class="btn w-full h-6 text-[8px] mt-1">On / Off</button>
+            </div>
+
+            <div class="collapsed-ui hidden flex-col gap-2">
+                <div class="grid grid-cols-3 gap-1">
+                    <div class="flex flex-col items-center justify-center"><label>WAVE</label><select id="wave-c-${this.id}" class="w-full h-5 text-[8px] mt-1"><option value="sine">SIN</option><option value="square">SQR</option><option value="triangle">TRI</option><option value="sawtooth">SAW</option></select></div>
+                    <div class="flex flex-col items-center justify-center"><label>FUND</label><input type="number" id="freq-c-${this.id}" value="110" class="w-full h-5 mt-1 commit-field"></div>
+                    <div class="flex flex-col items-center justify-center"><label>HARM</label><input type="number" id="harm-c-${this.id}" value="${this.id+1}" class="w-full h-5 mt-1 commit-field"></div>
+                </div>
+                <button id="btn-onoff-c-${this.id}" class="btn w-full h-7 font-black">ON / OFF</button>
+            </div>
+        `;
+        col.appendChild(strip);
+    }
+
+    knob(id, label, min, max, val) {
+        return `<div class="knob-stack"><label>${label}</label><div class="knob-surround"><div id="${id}-pointer" class="knob-pointer"></div><input type="range" id="${id}-sl" min="${min}" max="${max}" step="0.01" value="${val}" class="knob-input"></div><input type="number" id="${id}-num" value="${val}" class="w-8 h-4 mt-0.5 commit-field"></div>`;
+    }
+
+    attachListeners() {
+        const vSync = () => this.syncParams();
+        
+        ['freq', 'harm'].forEach(k => {
+            const f1 = document.getElementById(`${k}-${this.id}`), f2 = document.getElementById(`${k}-c-${this.id}`);
+            applyCommitLogic(f1, (v) => { if(f2) f2.value = v; vSync(); });
+            applyCommitLogic(f2, (v) => { if(f1) f1.value = v; vSync(); });
+        });
+
+        ['p-on-a', 'p-on-b', 'p-off-a', 'p-off-b'].forEach(k => {
+            applyCommitLogic(document.getElementById(`${k}-${this.id}`), vSync);
+        });
+
+        const w1 = document.getElementById(`wave-${this.id}`), w2 = document.getElementById(`wave-c-${this.id}`);
+        w1.onchange = () => { if(w2) w2.value = w1.value; vSync(); };
+        w2.onchange = () => { if(w1) w1.value = w2.value; vSync(); };
+
+        ['atk', 'rel', 'vol', 'pan', 'lpf', 'tr-rate', 'tr-depth', 'porta'].forEach(k => {
+            const sl = document.getElementById(`${k}-${this.id}-sl`), num = document.getElementById(`${k}-${this.id}-num`);
+            if(!sl) return;
+            sl.oninput = () => { num.value = sl.value; updateKnobVisual(`${k}-${this.id}`, sl.value); vSync(); };
+            applyCommitLogic(num, (val) => { sl.value = val; updateKnobVisual(`${k}-${this.id}`, val); vSync(); });
+        });
+
+        const triggerToggle = () => { 
+            this.isToggled = !this.isToggled; 
+            this.runActivationState();
+        };
+        document.getElementById(`btn-onoff-${this.id}`).onclick = triggerToggle;
+        document.getElementById(`btn-onoff-c-${this.id}`).onclick = triggerToggle;
+        
+        document.getElementById(`pls-sw-${this.id}`).onclick = (e) => { 
+            this.pulseActive = !this.pulseActive; 
+            e.currentTarget.classList.toggle('toggle-active', this.pulseActive); 
+            clearTimeout(this.pulseTimeout); if (this.pulseActive && this.isToggled) this.runPulseLoop(); else if (this.isToggled) this.trigger();
+        };
+        document.getElementById(`trem-sw-${this.id}`).onclick = (e) => { this.tremActive = !this.tremActive; e.currentTarget.classList.toggle('toggle-active', this.tremActive); vSync(); };
+        document.getElementById(`porta-sw-${this.id}`).onclick = (e) => { this.portaActive = !this.portaActive; e.currentTarget.classList.toggle('toggle-active', this.portaActive); vSync(); };
+    }
+
+    // New helper to handle the logic of actual audio state vs toggle state
+    runActivationState() {
+        this.updateButtonVisuals(this.isToggled);
+        clearTimeout(this.pulseTimeout);
+        if (this.isToggled) { 
+            if (this.pulseActive) this.runPulseLoop(); 
+            else this.trigger(); 
+        } else { 
+            this.release(); 
+        }
+    }
+
+    updateButtonVisuals(isActive) {
+        [document.getElementById(`btn-onoff-${this.id}`), document.getElementById(`btn-onoff-c-${this.id}`)].forEach(b => b?.classList.toggle('btn-active', isActive));
+    }
+
+    getPulseVal(idBase) {
+        const a = parseFloat(document.getElementById(`${idBase}-a-${this.id}`).value);
+        const bEl = document.getElementById(`${idBase}-b-${this.id}`);
+        if (bEl && !bEl.classList.contains('hidden')) {
+            const b = parseFloat(bEl.value);
+            return Math.min(a, b) + Math.random() * Math.abs(b - a);
+        }
+        return a;
+    }
+
+    runPulseLoop() {
+        clearTimeout(this.pulseTimeout); if(!this.pulseActive || !this.isToggled) return;
+        this.trigger();
+        this.pulseTimeout = setTimeout(() => {
+            if(!this.pulseActive || !this.isToggled) return;
+            this.release();
+            this.pulseTimeout = setTimeout(() => this.runPulseLoop(), Math.max(10, this.getPulseVal('p-off') * 1000));
+        }, Math.max(10, this.getPulseVal('p-on') * 1000));
+    }
+
+    toggleCollapse() { this.collapsed = !this.collapsed; document.getElementById(`strip-${this.id}`).classList.toggle('collapsed', this.collapsed); }
+
+    updateMeter() {
+        const getAmp = (a, d) => { a.getByteFrequencyData(d); let m = 0; for(let i=0; i<d.length; i++) if(d[i] > m) m = d[i]; return m / 255; };
+        const mL = document.getElementById(`metL-${this.id}`), mR = document.getElementById(`metR-${this.id}`);
+        if(mL) mL.style.height = `${getAmp(this.nodes.analyserL, new Uint8Array(32))*100}%`;
+        if(mR) mR.style.height = `${getAmp(this.nodes.analyserR, new Uint8Array(32))*100}%`;
+        requestAnimationFrame(() => this.updateMeter());
+    }
+
+    syncParams(immediate = false) {
+        const now = ctx.currentTime;
+        const f = parseFloat(document.getElementById(`freq-${this.id}`).value) || 110;
+        const h = parseFloat(document.getElementById(`harm-${this.id}`).value) || 1;
+        this.nodes.osc.frequency.setTargetAtTime(f * h, now, (immediate || !this.portaActive) ? 0.001 : parseFloat(document.getElementById(`porta-${this.id}-num`).value)/3);
+        this.nodes.osc.type = document.getElementById(`wave-${this.id}`).value;
+        this.nodes.pan.pan.setTargetAtTime(parseFloat(document.getElementById(`pan-${this.id}-num`).value), now, 0.05);
+        this.nodes.volGain.gain.setTargetAtTime(parseFloat(document.getElementById(`vol-${this.id}-num`).value), now, 0.1);
+        this.nodes.filter.frequency.setTargetAtTime(parseFloat(document.getElementById(`lpf-${this.id}-num`).value), now, 0.05);
+        this.nodes.lfo.frequency.setTargetAtTime(1/parseFloat(document.getElementById(`tr-rate-${this.id}-num`).value), now, 0.05);
+        this.nodes.lfoDepth.gain.setTargetAtTime(this.tremActive ? parseFloat(document.getElementById(`tr-depth-${this.id}-num`).value) : 0, now, 0.05);
+    }
+
+    trigger() { this.syncParams(); this.nodes.envGain.gain.cancelScheduledValues(ctx.currentTime); this.nodes.envGain.gain.setTargetAtTime(1.0, ctx.currentTime, parseFloat(document.getElementById(`atk-${this.id}-num`).value)/3); }
+    release() { this.nodes.envGain.gain.cancelScheduledValues(ctx.currentTime); this.nodes.envGain.gain.setTargetAtTime(0, ctx.currentTime, parseFloat(document.getElementById(`rel-${this.id}-num`).value)/3); }
+}
+
+function globalApply() {
+    const isChecked = (id) => document.getElementById(`g-chk-${id}`).checked;
+    const gPulseRndOn = document.getElementById('rnd-g-p-on').classList.contains('active');
+    const gPulseRndOff = document.getElementById('rnd-g-p-off').classList.contains('active');
+
+    const getVal = (id) => { 
+        const a = parseFloat(document.getElementById(`${id}-a`).value), bEl = document.getElementById(`${id}-b`);
+        const isRnd = document.getElementById(`rnd-${id}`)?.classList.contains('active');
+        return isRnd ? (a + Math.random() * (parseFloat(bEl.value) - a)) : a; 
+    };
+
+    let hCount = parseInt(document.getElementById('g-harm-val').value);
+    const gWave = document.getElementById('g-wave').value;
+    const gPls = document.getElementById('g-pls-sw').classList.contains('toggle-active');
+    const gTrm = document.getElementById('g-trem-sw').classList.contains('toggle-active');
+    const gPrt = document.getElementById('g-porta-sw').classList.contains('toggle-active');
+
+    voices.forEach(v => {
+        if (document.getElementById(`target-${v.id}`).checked) {
+            if (isChecked('wave')) { document.getElementById(`wave-${v.id}`).value = gWave; document.getElementById(`wave-c-${v.id}`).value = gWave; }
+            if (isChecked('fund')) { document.getElementById(`freq-${v.id}`).value = getVal('g-fund'); document.getElementById(`freq-c-${v.id}`).value = document.getElementById(`freq-${v.id}`).value; }
+            if (isChecked('harm')) { 
+                const h = document.getElementById('g-harm-inc').classList.contains('active') ? hCount++ : hCount;
+                document.getElementById(`harm-${v.id}`).value = h; document.getElementById(`harm-c-${v.id}`).value = h;
+            }
+            ['atk','rel','lpf','vol','pan'].forEach(k => {
+                if (isChecked(k)) {
+                    const val = getVal(`g-${k}`);
+                    document.getElementById(`${k}-${v.id}-num`).value = val.toFixed(2);
+                    document.getElementById(`${k}-${v.id}-sl`).value = val;
+                    updateKnobVisual(`${k}-${v.id}`, val);
+                }
+            });
+            if (isChecked('pulse')) {
+                v.pulseActive = gPls; document.getElementById(`pls-sw-${v.id}`).classList.toggle('toggle-active', gPls);
+                toggleRnd(document.getElementById(`rnd-p-on-${v.id}`), `p-on-b-${v.id}`, gPulseRndOn);
+                toggleRnd(document.getElementById(`rnd-p-off-${v.id}`), `p-off-b-${v.id}`, gPulseRndOff);
+                document.getElementById(`p-on-a-${v.id}`).value = document.getElementById(`g-p-on-a`).value;
+                document.getElementById(`p-on-b-${v.id}`).value = document.getElementById(`g-p-on-b`).value;
+                document.getElementById(`p-off-a-${v.id}`).value = document.getElementById(`g-p-off-a`).value;
+                document.getElementById(`p-off-b-${v.id}`).value = document.getElementById(`g-p-off-b`).value;
+            }
+            if (isChecked('trem')) { 
+                v.tremActive = gTrm; document.getElementById(`trem-sw-${v.id}`).classList.toggle('toggle-active', gTrm); 
+                document.getElementById(`tr-rate-${v.id}-num`).value = getVal('g-tr-rate');
+                document.getElementById(`tr-depth-${v.id}-num`).value = getVal('g-tr-depth');
+            }
+            if (isChecked('porta')) { 
+                v.portaActive = gPrt; document.getElementById(`porta-sw-${v.id}`).classList.toggle('toggle-active', gPrt); 
+                document.getElementById(`porta-${v.id}-num`).value = getVal('g-porta');
+            }
+            v.syncParams();
+        }
+    });
+}
+
+function killAll() { voices.forEach(v => { v.isToggled = false; v.runActivationState(); }); }
+
+function saveMemory() {
+    const slot = document.getElementById('memory-slot').value;
+    let bank = JSON.parse(localStorage.getItem(APP_KEY) || "{}");
+    bank[slot] = voices.map(v => ({
+        id: v.id, 
+        wave: document.getElementById(`wave-${v.id}`).value,
+        freq: document.getElementById(`freq-${v.id}`).value, 
+        harm: document.getElementById(`harm-${v.id}`).value,
+        atk: document.getElementById(`atk-${v.id}-num`).value, 
+        rel: document.getElementById(`rel-${v.id}-num`).value,
+        lpf: document.getElementById(`lpf-${v.id}-num`).value, 
+        vol: document.getElementById(`vol-${v.id}-num`).value,
+        pan: document.getElementById(`pan-${v.id}-num`).value, 
+        porta: document.getElementById(`porta-${v.id}-num`).value,
+        pls: v.pulseActive, 
+        trm: v.tremActive, 
+        prt: v.portaActive, 
+        toggled: v.isToggled, // Captures On/Off state
+        p_on_a: document.getElementById(`p-on-a-${v.id}`).value, 
+        p_on_b: document.getElementById(`p-on-b-${v.id}`).value,
+        p_on_rnd: document.getElementById(`rnd-p-on-${v.id}`).classList.contains('active'),
+        p_off_a: document.getElementById(`p-off-a-${v.id}`).value,
+        p_off_b: document.getElementById(`p-off-b-${v.id}`).value,
+        p_off_rnd: document.getElementById(`rnd-p-off-${v.id}`).classList.contains('active')
+    }));
+    localStorage.setItem(APP_KEY, JSON.stringify(bank));
+}
+
+function loadMemory() {
+    const slot = document.getElementById('memory-slot').value;
+    const bank = JSON.parse(localStorage.getItem(APP_KEY) || "{}");
+    if (!bank[slot]) return;
+    bank[slot].forEach(st => {
+        const v = voices[st.id];
+        document.getElementById(`wave-${v.id}`).value = st.wave; 
+        document.getElementById(`wave-c-${v.id}`).value = st.wave;
+        document.getElementById(`freq-${v.id}`).value = st.freq; 
+        document.getElementById(`freq-c-${v.id}`).value = st.freq;
+        document.getElementById(`harm-${v.id}`).value = st.harm; 
+        document.getElementById(`harm-c-${v.id}`).value = st.harm;
+        
+        ['atk','rel','lpf','vol','pan','porta'].forEach(k => {
+            const val = st[k];
+            document.getElementById(`${k}-${v.id}-num`).value = val; 
+            document.getElementById(`${k}-${v.id}-sl`).value = val; 
+            updateKnobVisual(`${k}-${v.id}`, val);
+        });
+
+        document.getElementById(`p-on-a-${v.id}`).value = st.p_on_a || 1.0;
+        document.getElementById(`p-on-b-${v.id}`).value = st.p_on_b || 1.0;
+        toggleRnd(document.getElementById(`rnd-p-on-${v.id}`), `p-on-b-${v.id}`, !!st.p_on_rnd);
+
+        document.getElementById(`p-off-a-${v.id}`).value = st.p_off_a || 1.0;
+        document.getElementById(`p-off-b-${v.id}`).value = st.p_off_b || 1.0;
+        toggleRnd(document.getElementById(`rnd-p-off-${v.id}`), `p-off-b-${v.id}`, !!st.p_off_rnd);
+
+        v.pulseActive = st.pls; document.getElementById(`pls-sw-${v.id}`).classList.toggle('toggle-active', st.pls);
+        v.tremActive = st.trm; document.getElementById(`trem-sw-${v.id}`).classList.toggle('toggle-active', st.trm);
+        v.portaActive = st.prt; document.getElementById(`porta-sw-${v.id}`).classList.toggle('toggle-active', st.prt);
+        
+        // Apply On/Off state
+        v.isToggled = st.toggled; 
+        v.runActivationState(); 
+        v.syncParams();
+    });
+}
+
+function exportMemory() {
+    const data = localStorage.getItem(APP_KEY);
+    const blob = new Blob([data], {type: 'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = `HarmonicOrchestra_Presets.json`; a.click();
+}
+
+function importMemory(input) {
+    const file = input.files[0]; if(!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => { try { const json = JSON.parse(e.target.result); localStorage.setItem(APP_KEY, JSON.stringify(json)); alert('Presets imported.'); location.reload(); } catch(err) { alert('Error.'); } };
+    reader.readAsText(file);
+}
+
+function setupAudio() {
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    masterLimiter = ctx.createDynamicsCompressor(); masterGainNode = ctx.createGain();
+    masterLimiter.connect(masterGainNode).connect(ctx.destination);
+    
+    document.getElementById('batch-params-container').innerHTML = ['g-atk','g-rel','g-lpf','g-vol','g-pan'].map((id, i) => 
+        createBatchControlHTML(id, ['Atk','Rel','LPF','Vol','Pan'][i], [0.5,1.5,8000,0.1,0][i])
+    ).join('');
+
+    // Master Volume setup
+    const mSl = document.getElementById('master-vol-sl'), mNum = document.getElementById('master-vol-num');
+    mSl.oninput = () => { mNum.value = mSl.value; masterGainNode.gain.setTargetAtTime(mSl.value, ctx.currentTime, 0.05); updateKnobVisual('master-vol', mSl.value); };
+    applyCommitLogic(mNum, (val) => { mSl.value = val; masterGainNode.gain.setTargetAtTime(val, ctx.currentTime, 0.05); updateKnobVisual('master-vol', val); });
+
+    // Initialize memory select
+    const memSel = document.getElementById('memory-slot'); for(let i=1; i<=20; i++) memSel.innerHTML += `<option value="${i}">Preset ${i}</option>`;
+    
+    // Create Target Grid
+    for (let r = 0; r < 2; r++) {
+        const row = document.getElementById(`target-row-${r}`);
+        const btn = document.createElement('div'); btn.className = "row-toggle"; btn.innerText = ">"; btn.onclick = () => toggleRow(r);
+        row.appendChild(btn);
+        for (let i = 0; i < 8; i++) {
+            const idx = (r * 8) + i;
+            const wrap = document.createElement('div'); wrap.className = "flex flex-col items-center gap-[1px]";
+            wrap.innerHTML = `<input type="checkbox" id="target-${idx}" class="target-box" checked><span class="text-[5px] opacity-30">${idx+1}</span>`;
+            row.appendChild(wrap);
+        }
+    }
+
+    // Spawn Voices
+    for(let i=0; i<16; i++) voices.push(new Voice(i));
+    
+    // Final check for all batch send inputs to have Enter feedback
+    document.querySelectorAll('.global-panel input[type=number]').forEach(el => {
+        applyCommitLogic(el, () => {}); 
+    });
+
+    document.getElementById('init-screen').style.display = 'none';
+}
+</script>
+</body>
+</html>
