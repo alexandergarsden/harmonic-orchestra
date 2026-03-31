@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Harmonic Orchestra v64</title>
+    <title>Harmonic Orchestra</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root {
@@ -26,8 +26,8 @@
         .committing { background: var(--accent) !important; color: #000 !important; }
 
         .brand-header {
-            height: 45px; background: #000; border-bottom: 1px solid var(--border);
-            display: flex; align-items: center; justify-content: space-between; padding: 0 12px;
+            height: auto; min-height: 90px; background: #000; border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between; padding: 12px 12px;
         }
         
         .global-panel { 
@@ -49,6 +49,11 @@
             box-shadow: 0 0 10px rgba(255,255,255,0.6); 
         }
 
+        .trigger-box {
+            appearance: none; width: 11px; height: 11px; border: 1px solid #444; 
+            background: transparent; cursor: pointer; border-radius: 50%; transition: all 0.2s; 
+        }
+
         .row-toggle { 
             font-size: 9px; width: 12px; height: 11px;
             cursor: pointer; font-weight: 900; color: rgba(255,255,255,0.2);
@@ -58,22 +63,22 @@
         }
         .row-toggle:hover { color: #fff; }
 
-        .orchestra-container { display: flex; gap: 6px; padding: 10px; align-items: flex-start; overflow-x: auto; height: calc(100vh - 155px); }
-        .voice-column { display: column; flex-direction: column; gap: 6px; min-width: 155px; }
+        .orchestra-container { display: flex; gap: 6px; padding: 10px; align-items: flex-start; overflow-x: auto; height: calc(100vh - 200px); }
+        .voice-column { display: flex; flex-direction: column; gap: 6px; min-width: 155px; }
 
         .voice-strip { background: var(--strip); border: 1px solid var(--border); padding: 8px; border-radius: var(--radius); }
         .voice-strip.collapsed .full-ui { display: none; }
         .voice-strip.collapsed .collapsed-ui { display: flex; }
 
         .meter-container { width: 3px; height: 11px; background: #000; border-radius: 1px; overflow: hidden; position: relative; }
-        .meter-bar { width: 100%; position: absolute; bottom: 0; background: #4ade80; }
+        .meter-bar { width: 100%; position: absolute; bottom: 0; background: #4ade80; transition: height 0.05s linear; }
 
         .toggle-switch { width: 16px; height: 8px; border: 1px solid #444; position: relative; border-radius: 4px; cursor: pointer; }
         .toggle-knob { width: 4px; height: 4px; background: #555; position: absolute; top: 1px; left: 2px; transition: 0.2s; border-radius: 50%; }
         .toggle-active { border-color: var(--accent); box-shadow: var(--glow); }
         .toggle-active .toggle-knob { left: 8px; background: var(--accent); }
 
-        .btn { border: 1px solid var(--border); padding: 2px; text-transform: uppercase; font-size: 7px; cursor: pointer; background: transparent; color: var(--text); border-radius: 4px; }
+        .btn { border: 1px solid var(--border); padding: 2px; text-transform: uppercase; font-size: 7px; cursor: pointer; background: transparent; color: var(--text); border-radius: 4px; transition: all 0.2s; }
         .btn-active { background: var(--accent) !important; color: #000 !important; font-weight: 700; box-shadow: var(--glow); }
         
         label { font-size: 7px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--label); text-align: center; display: block; }
@@ -90,32 +95,63 @@
 </head>
 <body>
 
-    <div class="brand-header">
-        <div class="flex flex-col">
-            <div class="text-[10px] tracking-[0.3em] font-bold text-white/90">HARMONIC ORCHESTRA</div>
-            <div class="text-[7px] tracking-[0.1em] uppercase opacity-40">© Alexander Garsden 2026</div>
+    <div class="brand-header flex w-full">
+        
+        <div class="flex items-center gap-6 h-full">
+            <div class="flex flex-col pr-4 border-r border-white/10 justify-center h-full">
+                <div class="text-[10px] tracking-[0.3em] font-bold text-white/90">HARMONIC ORCHESTRA</div>
+                <div class="text-[7px] tracking-[0.1em] uppercase opacity-40">© Alexander Garsden 2026</div>
+            </div>
+
+            <div class="flex items-center gap-4">
+                <button onclick="killAll()" class="btn px-3 h-7 border-red-900/40 text-red-500 font-bold hover:bg-red-900/10">All Off</button>
+                <div class="knob-stack !flex-row !gap-2 items-center">
+                    <label class="mt-1">Master</label>
+                    <div class="knob-surround">
+                        <div id="master-vol-pointer" class="knob-pointer"></div>
+                        <input type="range" id="master-vol-sl" min="0" max="1.5" step="0.01" value="0.8" class="knob-input">
+                    </div>
+                    <input type="number" id="master-vol-num" value="0.8" step="0.01" class="w-8 h-5 mt-0.5 commit-field">
+                </div>
+                
+                <div class="flex flex-col items-center gap-[3px] ml-1">
+                    <div class="flex gap-[2px] h-8 w-4 bg-[#0a0a0a] border border-[#222] rounded-[2px] p-[1px]">
+                        <div class="w-full h-full relative flex items-end overflow-hidden"><div id="master-met-L" class="w-full bg-[#4ade80] transition-colors duration-[50ms]"></div></div>
+                        <div class="w-full h-full relative flex items-end overflow-hidden"><div id="master-met-R" class="w-full bg-[#4ade80] transition-colors duration-[50ms]"></div></div>
+                    </div>
+                    <div class="text-[5px] text-white/30 uppercase tracking-widest font-bold">Out</div>
+                </div>
+            </div>
         </div>
 
-        <div class="flex items-center gap-2 bg-[#111] border border-white/5 p-1 rounded-md">
-            <label class="!text-[6px] opacity-30 px-1">Memory</label>
-            <select id="memory-slot" class="w-18 h-6 text-[9px] bg-black border-white/20"></select>
-            <button onclick="saveMemory()" class="btn px-2 h-6 hover:bg-white/10">SAVE</button>
-            <button onclick="loadMemory()" class="btn px-2 h-6 hover:bg-white/10">LOAD</button>
-            <div class="w-[1px] h-4 bg-white/10 mx-1"></div>
-            <button onclick="exportMemory()" class="btn px-2 h-6 hover:bg-white/10 border-blue-900/30">EXP</button>
-            <button onclick="document.getElementById('import-input').click()" class="btn px-2 h-6 hover:bg-white/10 border-blue-900/30">IMP</button>
-            <input type="file" id="import-input" class="hidden" accept=".json" onchange="importMemory(this)">
+        <div class="flex-1 flex justify-center items-center h-full">
+            <div class="flex items-center gap-2 bg-[#111] border border-white/5 p-1 rounded-md">
+                <label class="!text-[6px] opacity-30 px-1">Memory</label>
+                <select id="memory-slot" class="w-18 h-6 text-[9px] bg-black border-white/20"></select>
+                <button onclick="saveMemory()" class="btn px-2 h-6 hover:bg-white/10">SAVE</button>
+                <button onclick="loadMemory()" class="btn px-2 h-6 hover:bg-white/10">LOAD</button>
+                <div class="w-[1px] h-4 bg-white/10 mx-1"></div>
+                <button onclick="exportMemory()" class="btn px-2 h-6 hover:bg-white/10 border-blue-900/30">EXP</button>
+                <button onclick="document.getElementById('import-input').click()" class="btn px-2 h-6 hover:bg-white/10 border-blue-900/30">IMP</button>
+                <input type="file" id="import-input" class="hidden" accept=".json" onchange="importMemory(this)">
+            </div>
         </div>
         
-        <div class="flex items-center gap-4 h-full">
-            <button onclick="killAll()" class="btn px-3 h-7 border-red-900/40 text-red-500 font-bold hover:bg-red-900/10">All Off</button>
-            <div class="knob-stack !flex-row !gap-2">
-                <label class="mt-1">Master</label>
-                <div class="knob-surround">
-                    <div id="master-vol-pointer" class="knob-pointer"></div>
-                    <input type="range" id="master-vol-sl" min="0" max="1.5" step="0.01" value="0.8" class="knob-input">
+        <div class="flex items-center h-full border-l border-white/10 pl-2">
+            <div class="master-segment border-none">
+                <div class="flex flex-col gap-1 justify-center">
+                    <div class="flex items-center gap-3 mb-1">
+                        <label class="!text-left">Batch Trigger</label>
+                        <div class="flex gap-2"><button onclick="triggerBulkSelect(true)" class="text-[6px] opacity-40 hover:opacity-100 uppercase">[all]</button><button onclick="triggerBulkSelect(false)" class="text-[6px] opacity-40 hover:opacity-100 uppercase">[clear]</button></div>
+                    </div>
+                    <div id="trigger-selector" class="flex flex-col gap-[6px]">
+                        <div id="trigger-row-0" class="flex items-center gap-2"></div>
+                        <div id="trigger-row-1" class="flex items-center gap-2"></div>
+                    </div>
                 </div>
-                <input type="number" id="master-vol-num" value="0.8" step="0.01" class="w-8 h-5 mt-0.5 commit-field">
+            </div>
+            <div class="master-segment border-none pr-0 flex items-center justify-end mr-3">
+                <button onclick="triggerApply()" class="btn px-6 h-12 border-white/20 hover:bg-white/5 font-bold text-[9px]">Apply</button>
             </div>
         </div>
     </div>
@@ -200,22 +236,25 @@
             </div>
         </div>
 
-        <div class="master-segment">
-            <div class="flex flex-col gap-1 justify-center">
-                <div class="flex items-center gap-3 mb-1">
-                    <label class="!text-left">Targets</label>
-                    <div class="flex gap-2"><button onclick="bulkSelect(true)" class="text-[6px] opacity-40 hover:opacity-100 uppercase">[all]</button><button onclick="bulkSelect(false)" class="text-[6px] opacity-40 hover:opacity-100 uppercase">[none]</button></div>
+        <div class="flex-1 min-w-[20px]"></div> <div class="flex items-center h-full border-l border-white/10 pl-2">
+            <div class="master-segment border-none">
+                <div class="flex flex-col gap-1 justify-center">
+                    <div class="flex items-center gap-3 mb-1">
+                        <label class="!text-left">Targets</label>
+                        <div class="flex gap-2"><button onclick="bulkSelect(true)" class="text-[6px] opacity-40 hover:opacity-100 uppercase">[all]</button><button onclick="bulkSelect(false)" class="text-[6px] opacity-40 hover:opacity-100 uppercase">[none]</button></div>
+                    </div>
+                    <div id="target-selector" class="flex flex-col gap-[6px]">
+                        <div id="target-row-0" class="flex items-center gap-2"></div>
+                        <div id="target-row-1" class="flex items-center gap-2"></div>
+                    </div>
                 </div>
-                <div id="target-selector" class="flex flex-col gap-[6px]">
-                    <div id="target-row-0" class="flex items-center gap-2"></div>
-                    <div id="target-row-1" class="flex items-center gap-2"></div>
-                </div>
+            </div>
+
+            <div class="master-segment border-none pr-0 flex items-center justify-end mr-3">
+                <button onclick="globalApply()" class="btn px-6 h-12 border-white/20 hover:bg-white/5 font-bold text-[9px]">Apply</button>
             </div>
         </div>
 
-        <div class="master-segment border-none flex-1 flex justify-end pr-4">
-            <button onclick="globalApply()" class="btn px-6 h-12 border-white/20 hover:bg-white/5 font-bold text-[9px]">Apply</button>
-        </div>
     </div>
 
     <div id="orchestra-grid" class="orchestra-container"></div>
@@ -225,9 +264,11 @@
     </div>
 
 <script>
-let ctx, masterLimiter, masterGainNode;
+let ctx, masterLimiter, masterGainNode, masterSplitter, masterAnalyserL, masterAnalyserR;
+let masterDataL, masterDataR;
 const voices = [];
-const APP_KEY = "harmonic_orch_v64_presets";
+const APP_KEY = "harmonic_orch_v65_presets";
+let triggerStates = new Array(16).fill(null);
 
 function commitFlash(el) {
     if(!el) return;
@@ -235,7 +276,6 @@ function commitFlash(el) {
     setTimeout(() => el.classList.remove('committing'), 150);
 }
 
-// Global hook to apply "Enter to Commit" to any field
 function applyCommitLogic(el, callback) {
     if(!el) return;
     el.addEventListener('keydown', (e) => {
@@ -277,6 +317,79 @@ function toggleRow(rowIdx) {
     }
 }
 
+// BATCH TRIGGER LOGIC
+window.renderTriggerState = function() {
+    for(let i=0; i<16; i++) {
+        const el = document.getElementById(`trig-btn-${i}`);
+        if(!el) continue;
+        const isActive = voices[i] ? voices[i].isToggled : false;
+        const intent = triggerStates[i];
+
+        if (intent === 'turn_on') {
+            el.style.background = '#4ade80';
+            el.style.borderColor = '#4ade80';
+            el.style.boxShadow = '0 0 14px 3px rgba(74, 222, 128, 0.7)'; // Diffuse green glow
+        } else if (intent === 'turn_off') {
+            el.style.background = '#f87171';
+            el.style.borderColor = '#f87171';
+            el.style.boxShadow = '0 0 14px 3px rgba(248, 113, 113, 0.7)'; // Diffuse red glow
+        } else {
+            if (isActive) {
+                el.style.background = '#fff';
+                el.style.borderColor = '#fff';
+                el.style.boxShadow = '0 0 12px 1px rgba(255, 255, 255, 0.8)';
+            } else {
+                el.style.background = 'transparent';
+                el.style.borderColor = '#444';
+                el.style.boxShadow = 'none';
+            }
+        }
+    }
+};
+
+window.toggleTriggerRow = function(rowIdx) {
+    const start = rowIdx * 8;
+    for(let i=start; i < start + 8; i++) window.toggleTriggerBtn(i, true);
+    window.renderTriggerState();
+};
+
+window.toggleTriggerBtn = function(i, deferRender) {
+    const isActive = voices[i] ? voices[i].isToggled : false;
+    if (triggerStates[i] === null) {
+        triggerStates[i] = isActive ? 'turn_off' : 'turn_on';
+    } else {
+        triggerStates[i] = null;
+    }
+    if(!deferRender) window.renderTriggerState();
+};
+
+window.triggerBulkSelect = function(isAll) {
+    if (!isAll) {
+        triggerStates.fill(null);
+    } else {
+        for(let i=0; i<16; i++) {
+            const isActive = voices[i] ? voices[i].isToggled : false;
+            triggerStates[i] = isActive ? 'turn_off' : 'turn_on';
+        }
+    }
+    window.renderTriggerState();
+};
+
+window.triggerApply = function() {
+    for(let i=0; i<16; i++) {
+        if (triggerStates[i] === 'turn_on' && !voices[i].isToggled) {
+            voices[i].isToggled = true;
+            voices[i].runActivationState();
+        } else if (triggerStates[i] === 'turn_off' && voices[i].isToggled) {
+            voices[i].isToggled = false;
+            voices[i].runActivationState();
+        }
+    }
+    triggerStates.fill(null);
+    window.renderTriggerState();
+};
+
+
 function updateKnobVisual(id, val) {
     const sl = document.getElementById(`${id}-sl`), ptr = document.getElementById(`${id}-pointer`);
     if(ptr && sl) ptr.style.transform = `rotate(${(((val - sl.min)/(sl.max - sl.min))*270)-135}deg)`;
@@ -311,10 +424,17 @@ class Voice {
         };
         this.nodes.envGain.gain.value = 0;
         this.nodes.osc.connect(this.nodes.filter).connect(this.nodes.tremGain).connect(this.nodes.pan)
-                  .connect(this.nodes.volGain).connect(this.nodes.envGain).connect(masterLimiter);
+                  .connect(this.nodes.volGain).connect(this.nodes.envGain).connect(masterGainNode); // Route to Master Gain directly
+        
+        // Meter connected POST envGain exactly to track the actual envelope and tremolo output signal
         this.nodes.envGain.connect(this.nodes.splitter);
         this.nodes.splitter.connect(this.nodes.analyserL, 0); this.nodes.splitter.connect(this.nodes.analyserR, 1);
-        this.nodes.analyserL.fftSize = 64; this.nodes.analyserR.fftSize = 64;
+        
+        // Set up wide time-domain window for precise RMS calculation at low frequencies
+        this.nodes.analyserL.fftSize = 256; this.nodes.analyserR.fftSize = 256;
+        this.meterDataL = new Float32Array(this.nodes.analyserL.fftSize);
+        this.meterDataR = new Float32Array(this.nodes.analyserR.fftSize);
+
         this.nodes.lfo.connect(this.nodes.lfoDepth).connect(this.nodes.tremGain.gain);
         this.nodes.osc.start(); this.nodes.lfo.start();
         this.render(); 
@@ -426,7 +546,6 @@ class Voice {
         document.getElementById(`porta-sw-${this.id}`).onclick = (e) => { this.portaActive = !this.portaActive; e.currentTarget.classList.toggle('toggle-active', this.portaActive); vSync(); };
     }
 
-    // New helper to handle the logic of actual audio state vs toggle state
     runActivationState() {
         this.updateButtonVisuals(this.isToggled);
         clearTimeout(this.pulseTimeout);
@@ -440,6 +559,7 @@ class Voice {
 
     updateButtonVisuals(isActive) {
         [document.getElementById(`btn-onoff-${this.id}`), document.getElementById(`btn-onoff-c-${this.id}`)].forEach(b => b?.classList.toggle('btn-active', isActive));
+        if (window.renderTriggerState) window.renderTriggerState();
     }
 
     getPulseVal(idBase) {
@@ -465,10 +585,16 @@ class Voice {
     toggleCollapse() { this.collapsed = !this.collapsed; document.getElementById(`strip-${this.id}`).classList.toggle('collapsed', this.collapsed); }
 
     updateMeter() {
-        const getAmp = (a, d) => { a.getByteFrequencyData(d); let m = 0; for(let i=0; i<d.length; i++) if(d[i] > m) m = d[i]; return m / 255; };
+        // True time-domain RMS envelope calculation
+        const getAmp = (a, d) => { 
+            a.getFloatTimeDomainData(d); 
+            let sum = 0; 
+            for(let i=0; i<d.length; i++) sum += d[i]*d[i]; 
+            return Math.min(1, Math.sqrt(sum / d.length) * 3.5); 
+        };
         const mL = document.getElementById(`metL-${this.id}`), mR = document.getElementById(`metR-${this.id}`);
-        if(mL) mL.style.height = `${getAmp(this.nodes.analyserL, new Uint8Array(32))*100}%`;
-        if(mR) mR.style.height = `${getAmp(this.nodes.analyserR, new Uint8Array(32))*100}%`;
+        if(mL) mL.style.height = `${getAmp(this.nodes.analyserL, this.meterDataL)*100}%`;
+        if(mR) mR.style.height = `${getAmp(this.nodes.analyserR, this.meterDataR)*100}%`;
         requestAnimationFrame(() => this.updateMeter());
     }
 
@@ -533,12 +659,19 @@ function globalApply() {
             }
             if (isChecked('trem')) { 
                 v.tremActive = gTrm; document.getElementById(`trem-sw-${v.id}`).classList.toggle('toggle-active', gTrm); 
-                document.getElementById(`tr-rate-${v.id}-num`).value = getVal('g-tr-rate');
-                document.getElementById(`tr-depth-${v.id}-num`).value = getVal('g-tr-depth');
+                ['tr-rate', 'tr-depth'].forEach(k => {
+                   const val = getVal(`g-${k}`);
+                   document.getElementById(`${k}-${v.id}-num`).value = val.toFixed(2);
+                   document.getElementById(`${k}-${v.id}-sl`).value = val;
+                   updateKnobVisual(`${k}-${v.id}`, val);
+                });
             }
             if (isChecked('porta')) { 
                 v.portaActive = gPrt; document.getElementById(`porta-sw-${v.id}`).classList.toggle('toggle-active', gPrt); 
-                document.getElementById(`porta-${v.id}-num`).value = getVal('g-porta');
+                const val = getVal('g-porta');
+                document.getElementById(`porta-${v.id}-num`).value = val.toFixed(2);
+                document.getElementById(`porta-${v.id}-sl`).value = val;
+                updateKnobVisual(`porta-${v.id}`, val);
             }
             v.syncParams();
         }
@@ -561,10 +694,12 @@ function saveMemory() {
         vol: document.getElementById(`vol-${v.id}-num`).value,
         pan: document.getElementById(`pan-${v.id}-num`).value, 
         porta: document.getElementById(`porta-${v.id}-num`).value,
+        tr_rate: document.getElementById(`tr-rate-${v.id}-num`).value,
+        tr_depth: document.getElementById(`tr-depth-${v.id}-num`).value,
         pls: v.pulseActive, 
         trm: v.tremActive, 
         prt: v.portaActive, 
-        toggled: v.isToggled, // Captures On/Off state
+        toggled: v.isToggled,
         p_on_a: document.getElementById(`p-on-a-${v.id}`).value, 
         p_on_b: document.getElementById(`p-on-b-${v.id}`).value,
         p_on_rnd: document.getElementById(`rnd-p-on-${v.id}`).classList.contains('active'),
@@ -588,11 +723,16 @@ function loadMemory() {
         document.getElementById(`harm-${v.id}`).value = st.harm; 
         document.getElementById(`harm-c-${v.id}`).value = st.harm;
         
-        ['atk','rel','lpf','vol','pan','porta'].forEach(k => {
+        ['atk','rel','lpf','vol','pan','porta','tr_rate','tr_depth'].forEach(k => {
             const val = st[k];
-            document.getElementById(`${k}-${v.id}-num`).value = val; 
-            document.getElementById(`${k}-${v.id}-sl`).value = val; 
-            updateKnobVisual(`${k}-${v.id}`, val);
+            const htmlKey = k.replace('_', '-'); 
+            const numEl = document.getElementById(`${htmlKey}-${v.id}-num`);
+            const slEl = document.getElementById(`${htmlKey}-${v.id}-sl`);
+            if(numEl && slEl) {
+                numEl.value = val; 
+                slEl.value = val; 
+                updateKnobVisual(`${htmlKey}-${v.id}`, val);
+            }
         });
 
         document.getElementById(`p-on-a-${v.id}`).value = st.p_on_a || 1.0;
@@ -607,7 +747,6 @@ function loadMemory() {
         v.tremActive = st.trm; document.getElementById(`trem-sw-${v.id}`).classList.toggle('toggle-active', st.trm);
         v.portaActive = st.prt; document.getElementById(`porta-sw-${v.id}`).classList.toggle('toggle-active', st.prt);
         
-        // Apply On/Off state
         v.isToggled = st.toggled; 
         v.runActivationState(); 
         v.syncParams();
@@ -628,45 +767,106 @@ function importMemory(input) {
     reader.readAsText(file);
 }
 
+function updateMasterMeter() {
+    if (!masterAnalyserL || !masterAnalyserR) return;
+    
+    const getAmp = (a, d) => {
+        a.getFloatTimeDomainData(d);
+        let sum = 0, peak = 0;
+        for(let i=0; i<d.length; i++) {
+            const val = Math.abs(d[i]);
+            sum += val * val;
+            if (val > peak) peak = val;
+        }
+        return { rms: Math.sqrt(sum / d.length) * 3.5, peak: peak };
+    };
+
+    const l = getAmp(masterAnalyserL, masterDataL);
+    const r = getAmp(masterAnalyserR, masterDataR);
+    
+    const ml = document.getElementById('master-met-L');
+    const mr = document.getElementById('master-met-R');
+
+    if (ml) {
+        ml.style.height = `${Math.min(100, l.rms * 100)}%`;
+        ml.style.background = l.peak >= 0.98 ? '#f87171' : '#4ade80'; // Clip red detection
+    }
+    if (mr) {
+        mr.style.height = `${Math.min(100, r.rms * 100)}%`;
+        mr.style.background = r.peak >= 0.98 ? '#f87171' : '#4ade80'; // Clip red detection
+    }
+    
+    requestAnimationFrame(updateMasterMeter);
+}
+
 function setupAudio() {
     ctx = new (window.AudioContext || window.webkitAudioContext)();
-    masterLimiter = ctx.createDynamicsCompressor(); masterGainNode = ctx.createGain();
-    masterLimiter.connect(masterGainNode).connect(ctx.destination);
+    masterLimiter = ctx.createDynamicsCompressor(); 
+    masterGainNode = ctx.createGain();
+    masterSplitter = ctx.createChannelSplitter(2);
+    masterAnalyserL = ctx.createAnalyser(); 
+    masterAnalyserR = ctx.createAnalyser();
+    
+    masterAnalyserL.fftSize = 256; 
+    masterAnalyserR.fftSize = 256;
+    masterDataL = new Float32Array(masterAnalyserL.fftSize);
+    masterDataR = new Float32Array(masterAnalyserR.fftSize);
+
+    // Audio Routing: Voices -> Gain -> Splitter (for Meter) -> Limiter -> Destination
+    masterGainNode.connect(masterSplitter);
+    masterSplitter.connect(masterAnalyserL, 0);
+    masterSplitter.connect(masterAnalyserR, 1);
+    
+    masterGainNode.connect(masterLimiter);
+    masterLimiter.connect(ctx.destination);
     
     document.getElementById('batch-params-container').innerHTML = ['g-atk','g-rel','g-lpf','g-vol','g-pan'].map((id, i) => 
         createBatchControlHTML(id, ['Atk','Rel','LPF','Vol','Pan'][i], [0.5,1.5,8000,0.1,0][i])
     ).join('');
 
-    // Master Volume setup
     const mSl = document.getElementById('master-vol-sl'), mNum = document.getElementById('master-vol-num');
     mSl.oninput = () => { mNum.value = mSl.value; masterGainNode.gain.setTargetAtTime(mSl.value, ctx.currentTime, 0.05); updateKnobVisual('master-vol', mSl.value); };
     applyCommitLogic(mNum, (val) => { mSl.value = val; masterGainNode.gain.setTargetAtTime(val, ctx.currentTime, 0.05); updateKnobVisual('master-vol', val); });
 
-    // Initialize memory select
     const memSel = document.getElementById('memory-slot'); for(let i=1; i<=20; i++) memSel.innerHTML += `<option value="${i}">Preset ${i}</option>`;
     
-    // Create Target Grid
+    // Batch Send AND Batch Trigger target selector layouts
     for (let r = 0; r < 2; r++) {
+        // Global Send
         const row = document.getElementById(`target-row-${r}`);
         const btn = document.createElement('div'); btn.className = "row-toggle"; btn.innerText = ">"; btn.onclick = () => toggleRow(r);
         row.appendChild(btn);
+        
+        // Header Trigger
+        const tRow = document.getElementById(`trigger-row-${r}`);
+        const tBtn = document.createElement('div'); tBtn.className = "row-toggle"; tBtn.innerText = ">"; tBtn.onclick = () => toggleTriggerRow(r);
+        if(tRow) tRow.appendChild(tBtn);
+
         for (let i = 0; i < 8; i++) {
             const idx = (r * 8) + i;
             const wrap = document.createElement('div'); wrap.className = "flex flex-col items-center gap-[1px]";
             wrap.innerHTML = `<input type="checkbox" id="target-${idx}" class="target-box" checked><span class="text-[5px] opacity-30">${idx+1}</span>`;
             row.appendChild(wrap);
+
+            if(tRow) {
+                const tWrap = document.createElement('div'); tWrap.className = "flex flex-col items-center gap-[1px]";
+                tWrap.innerHTML = `<div id="trig-btn-${idx}" class="trigger-box" onclick="toggleTriggerBtn(${idx})"></div><span class="text-[5px] opacity-30">${idx+1}</span>`;
+                tRow.appendChild(tWrap);
+            }
         }
     }
 
-    // Spawn Voices
     for(let i=0; i<16; i++) voices.push(new Voice(i));
+    window.renderTriggerState(); // initialize
     
-    // Final check for all batch send inputs to have Enter feedback
     document.querySelectorAll('.global-panel input[type=number]').forEach(el => {
         applyCommitLogic(el, () => {}); 
     });
 
     document.getElementById('init-screen').style.display = 'none';
+    
+    // Start master meter loop
+    updateMasterMeter();
 }
 </script>
 </body>
